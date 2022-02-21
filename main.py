@@ -62,6 +62,9 @@ def get_timing_signal(start_time):
     else:
         return "NEUTRAL"
 
+def to_iloc(start_time):
+    return np.where(df.index==start_time)[0][0]
+
 load_dotenv()
 
 BUY = "buy"
@@ -136,13 +139,15 @@ def algorithm(csv_row: str, context: dict[str, Any],):
         get_price['min_price'] = history_price.resample(time_span).min()
         get_price['max_price'] = history_price.resample(time_span).max()
         
+        # build the model
         df = get_price
         error_value = np.unique(np.where(np.isfinite(df)==0)[0]).tolist()
         df.drop(df.iloc[error_value].index, axis = 0, inplace = True)
-        slope_series = initial_slope_series(-1)[:-1]
+        start_time = str(df[-1].index)
+        slope_series = initial_slope_series(to_iloc(start_time))[:-1]
 
         counter += 1
-        response = yield get_timing_signal(-1)
+        response = yield get_timing_signal(start_time)
     if counter > 1000000:
         counter = 0
         yield None
