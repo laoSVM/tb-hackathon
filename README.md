@@ -4,7 +4,7 @@
 
 1. Create a single github account with a public repository for each team and or individual if you are not with a team
 2. Install git on your local machine
-3. Install docker on your local machine (Optional)
+3. Install docker on your locak machine (Optional)
 4. Clone this repo ``git clone https://github.com/TradeBlock/tb-hackathon.git``
 5. install [python version 3.10](https://www.python.org/downloads/) on your local development environment.
 8. run ``pip install -r requirements.txt`` in directory you cloned
@@ -17,20 +17,11 @@
 
 ## Problem Statement 
 
+* To be RELEASED Thurs. 2/17/22
+
 ### Summary
-
-Develop a trading strategy which will provide trading signals used to predict when to BUY or SELL a cryptocurrency pair based on previous data from different exchanges.  Please review references for details around how bitcoin and ethereum internals work.
-
 ### Constraints
-
-A notional limit of 1 million USD will be used for limiting buys meaning the initial cash available to trade is limited to this amount
-Trades can only be a BUY or a SELL with a cryptocurrency amount
-SELL trades can only be done after BUYS (i.e. no short sell)
-No outside data will be allowed
-
 ### Measures of Success
-
-A stream of trades for a fixed period of time will be fed into a function which will return an enumeration of BUY, SELL, or NEUTRAL.  The return value will then be used to simulate actual trades in the market and provide a monetary profit or loss.  The ending notional value of your model based computation will determine your score.  The score will determine the leaderboard and ultimately the prizes to be awarded.
 
 ## Data
 

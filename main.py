@@ -6,6 +6,62 @@ from os import getenv
 from s3_helper import CSVStream
 from typing import Any
 
+# Importing modules
+import os
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+import time
+import math
+import matplotlib.pyplot as plt
+import sys
+
+# set initial parameters
+N = 18 # batch size used to build model
+M = 600 # timespan we use to train the model
+score_threshold = 0.7 # rsrs threshold
+# Parameters used to calculate moving average
+mean_day = 20 # timespan to calculate the most recent close price
+mean_diff_day = 3 # time difference to calculate the before close price
+
+def get_ols(x, y):
+    slope, intercept = np.polyfit(x, y, 1)
+    r2 = 1 - (sum((y - (slope * x + intercept))**2) / ((len(y) - 1) * np.var(y, ddof=1)))
+    return (intercept, slope, r2)
+
+def initial_slope_series(start_time):
+    data = df.iloc[start_time-(N + M):start_time]
+    return [get_ols(data.min_price[i:i+N], data.max_price[i:i+N])[1] for i in range(M)]
+
+def get_zscore(slope_series):
+    mean = np.mean(slope_series)
+    std = np.std(slope_series)
+    return (slope_series[-1] - mean) / std
+
+# Main algorithm
+def get_timing_signal(start_time):
+    start_time = np.where(df.index==start_time)[0][0]
+    # calculate MA signal
+    close_data = df.iloc[start_time-(mean_day + mean_diff_day):start_time]
+    # 23 days，take the last 20 days
+    today_MA = close_data.mean_price[mean_diff_day:].mean() 
+    # 23 days，take the first 20 days
+    before_MA = close_data.mean_price[:-mean_diff_day].mean()
+    # calculate rsrs signal
+    high_low_data = pd.DataFrame({'low':df.iloc[start_time-N:start_time].min_price.to_list(),
+                                  'high':df.iloc[start_time-N:start_time].max_price.to_list()})
+    intercept, slope, r2 = get_ols(high_low_data.low, high_low_data.high)
+    slope_series.append(slope)
+
+    rsrs_score = get_zscore(slope_series[-M:]) * r2
+    # use signal combo to get final signal
+    if rsrs_score > score_threshold and today_MA > before_MA:
+        return "BUY"
+    elif rsrs_score < -score_threshold and today_MA < before_MA:
+        return "SELL"
+    else:
+        return "NEUTRAL"
+
 load_dotenv()
 
 BUY = "buy"
@@ -43,6 +99,11 @@ STREAM = CSVStream(
     expression=SELECT_ALL_QUERY,
 )
 
+
+context = pd.DataFrame(columns = ['pair','price','amount','time_stamp'])
+
+
+counter = 0
 @dataclass
 class Trade:
     trade_type: str # BUY | SELL
@@ -50,6 +111,42 @@ class Trade:
     volume: Decimal
 
 def algorithm(csv_row: str, context: dict[str, Any],):
+    csv_row =  pd.DataFrame(csv_row.split(',')).T
+    csv_row.rename(columns={0:'pair',1:'price',2:'amount',3:'time_stamp'},inplace = True)
+    context = pd.concat([context,csv_row], ignore_index=True,axis = 0)
+    
+    if counter < 1000000:
+        counter += 1
+        yield None
+    if counter == 1000000:
+        df = context[-1000000:].deepcopy()
+        # Data preprocessing
+        df['time_stamp'] = df['time_stamp'].apply(datetime.fromtimestamp)
+        df.sort_values(by=['time_stamp'],inplace=True)
+        history_price = pd.DataFrame(df.groupby(['time_stamp']).price.mean())
+        
+        # agg the data into 1 mins
+        time_span = '1T'
+        start = df['time_stamp'].iloc[0].strftime('%Y-%m-%d %H:%M:%S')
+        end = df['time_stamp'].iloc[-1].strftime('%Y-%m-%d %H:%M:%S')
+        index = pd.date_range(start, end, freq=time_span)
+        # get the features we need
+        get_price = pd.DataFrame(index = index)
+        get_price['mean_price'] = history_price.resample(time_span).mean()
+        get_price['min_price'] = history_price.resample(time_span).min()
+        get_price['max_price'] = history_price.resample(time_span).max()
+        
+        df = get_price
+        error_value = np.unique(np.where(np.isfinite(df)==0)[0]).tolist()
+        df.drop(df.iloc[error_value].index, axis = 0, inplace = True)
+        slope_series = initial_slope_series(-1)[:-1]
+
+        counter += 1
+        response = yield get_timing_signal(-1)
+    if counter > 1000000:
+        counter = 0
+        yield None
+
     """ Trading Algorithm
 
     Add your logic to this function. This function will simulate a streaming
@@ -69,7 +166,7 @@ def algorithm(csv_row: str, context: dict[str, Any],):
     """
     # algorithm logic...
 
-    response = yield None # example: Trade(BUY, 'xbt', Decimal(1))
+    # response = yield None # example: Trade(BUY, 'xbt', Decimal(1))
 
     # algorithm clean-up/error handling...
 
