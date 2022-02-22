@@ -17,11 +17,14 @@
 
 ## Problem Statement 
 
-* To be RELEASED Thurs. 2/17/22
-
 ### Summary
+Develop a trading strategy which will provide trading signals used to predict when to BUY or SELL a cryptocurrency pair based on previous data from different exchanges. Please review references for details around how bitcoin and ethereum internals work.
+
 ### Constraints
+A notional limit of 1 million USD will be used for limiting buys meaning the initial cash available to trade is limited to this amount Trades can only be a BUY or a SELL with a cryptocurrency amount SELL trades can only be done after BUYS (i.e. no short sell) No outside data will be allowed
+
 ### Measures of Success
+A stream of trades for a fixed period of time will be fed into a function which will return an enumeration of BUY, SELL, or NEUTRAL. The return value will then be used to simulate actual trades in the market and provide a monetary profit or loss. The ending notional value of your model based computation will determine your score. The score will determine the leaderboard and ultimately the prizes to be awarded.
 
 ## Data
 
